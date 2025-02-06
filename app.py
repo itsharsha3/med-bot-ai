@@ -1,29 +1,30 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, render_template, request, jsonify
+from transformers import pipeline
 
 app = Flask(__name__)
 
-def generate_response(user_input):
-    user_input = user_input.lower()
-    if any(word in user_input for word in ["headache", "head ache"]):
-        return "You might be experiencing a headache. Drink water, rest, and avoid bright lights. If it persists, consult a doctor."
-    elif any(word in user_input for word in ["fever", "high temperature"]):
-        return "You might have a fever. Take rest, stay hydrated, and monitor your temperature. If it persists or worsens, consult a doctor."
-    elif any(word in user_input for word in ["cough", "cold"]):
-        return "You might have a cold or cough. Drink warm fluids, rest, and avoid cold environments. If symptoms persist, consult a doctor."
-    elif any(word in user_input for word in ["stomach", "stomach ache"]):
-        return "You might have a stomach ache. Avoid heavy meals, drink plenty of water, and rest. If it persists, consult a doctor."
-    else:
-        return "I'm not sure about your condition. Please provide more details or consult a doctor."
+# Load a simple model as a placeholder
+model = pipeline("question-answering", model="deepset/roberta-base-squad2")
 
-@app.route('/chat', methods=['POST'])
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/chat", methods=["POST"])
 def chat():
-    user_input = request.json.get('message')
-    response = generate_response(user_input)
-    return jsonify({'response': response})
+    user_message = request.json.get("message")
+    if not user_message:
+        return jsonify({"response": "Please provide a valid question."})
 
-@app.route('/')
-def home():
-    return render_template('index.html')  # Serve from the templates folder
+    context = "This is a Medical AI Bot designed to answer your health-related questions. " \
+              "It is not a replacement for professional medical advice."
+    try:
+        response = model(question=user_message, context=context)
+        bot_reply = response.get("answer", "I'm sorry, I couldn't find an answer.")
+    except Exception as e:
+        bot_reply = "An error occurred in processing your request."
 
-if __name__ == '__main__':
+    return jsonify({"response": bot_reply})
+
+if __name__ == "__main__":
     app.run(debug=True)
